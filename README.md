@@ -4,7 +4,7 @@ Aplicación didáctica y de seguimiento para el módulo **0441 · Técnica Conta
 
 ## Versión actual
 
-La primera versión funcional desarrolla la **UD1 · El patrimonio empresarial en Canarias**, asociada al **RA1**, con una duración programada de **14 horas** y trazabilidad completa de **RA1.a a RA1.g**.
+La versión actual desarrolla la **UD1 · El patrimonio empresarial en Canarias**, asociada al **RA1**, con una duración programada de **14 horas** y trazabilidad completa de **RA1.a a RA1.g**.
 
 ### Criterios cubiertos
 
@@ -16,6 +16,39 @@ La primera versión funcional desarrolla la **UD1 · El patrimonio empresarial e
 - **RA1.f** · Relación de las masas patrimoniales con el ciclo económico.
 - **RA1.g** · Clasificación y ordenación de elementos patrimoniales en masas.
 
+## Recursos reutilizados en la UD1
+
+TEB conserva y reutiliza los recursos interactivos ya disponibles para estos contenidos en lugar de duplicarlos.
+
+### Micro-SCORM 1.2 originales
+
+Los tres paquetes se mantienen como **SCORM 1.2 formativos y no evaluables**, con sus intentos, autocorrección, registro de interacciones, PDF de resultados y funciones de protección originales.
+
+| Recurso | Integración TEB | Criterios principales |
+|---|---|---|
+| Micropráctica 3 · Patrimonio y masas patrimoniales | Bloque 6 | RA1.d · RA1.e |
+| Micropráctica 4 · Estructura económica y financiera | Bloque 11 | RA1.f |
+| Micropráctica 5 · Clasificación patrimonial | Bloque 10 | RA1.g |
+
+TEB actúa como **LMS anfitrión SCORM 1.2**. La aplicación ofrece al paquete el objeto `window.API` esperado por SCORM y captura, entre otros datos:
+
+- `cmi.core.student_id` y `cmi.core.student_name`;
+- `cmi.core.lesson_status`;
+- `cmi.core.score.raw`;
+- `cmi.core.lesson_location`;
+- `cmi.suspend_data` para reanudación;
+- `cmi.objectives.*` para relacionar la evidencia con los criterios;
+- `cmi.interactions.*` generadas por el propio paquete.
+
+La finalización de estas microprácticas se interpreta como **actividad formativa completada**, no como aprobado/suspenso. Las puntuaciones obtenidas sí se conservan como evidencias del criterio y se muestran en el panel docente.
+
+### Juegos reutilizados
+
+- Práctica básica de clasificación en Activo / Pasivo / Patrimonio Neto.
+- Entrenamiento avanzado por rondas, con puntuación y dificultad creciente.
+
+Estos recursos también comunican su resultado a TEB y alimentan el historial del alumno.
+
 ## Funciones implementadas
 
 ### Alumnado
@@ -25,12 +58,10 @@ La primera versión funcional desarrolla la **UD1 · El patrimonio empresarial e
 - Itinerario de **14 bloques didácticos** de aproximadamente 55 minutos.
 - Explicación, práctica y evidencia en cada bloque.
 - Banco autocorregible de preguntas por criterio.
+- Micro-SCORM 1.2 integrados dentro de la propia interfaz.
 - Registro de intentos, puntuación, tiempo y progreso.
+- Persistencia de `suspend_data` y posición de los SCORM reutilizados.
 - Mapa visible de dominio de RA1.a–RA1.g.
-- Dos recursos patrimoniales reutilizados e integrados dentro de la unidad:
-  - práctica básica de clasificación Activo / Pasivo / Patrimonio Neto;
-  - entrenamiento avanzado por rondas, con puntuación y dificultad creciente.
-- Los recursos integrados comunican sus resultados al servidor TEB y computan en el seguimiento.
 
 ### Panel docente / administrador
 
@@ -46,16 +77,19 @@ La primera versión funcional desarrolla la **UD1 · El patrimonio empresarial e
   - puntuación media;
   - tiempo acumulado;
   - dominio por cada criterio RA1.a–RA1.g;
+  - resultados procedentes de los Micro-SCORM;
   - historial de actividades y evidencias.
 - Exportación CSV del seguimiento.
 
 ## Arquitectura
 
 - `server/server.mjs` · backend Node.js y API REST.
-- `server/data/` o `/var/lib/teb` · base SQLite en producción.
+- `/var/lib/teb` · base SQLite persistente en producción.
 - `web/` · interfaz del alumnado y panel docente.
 - `web/course.js` · estructura didáctica completa de la UD1.
-- `web/reutilizados/` · actividades patrimoniales adaptadas a TEB.
+- `web/reutilizados/` · juegos y Micro-SCORM preparados para ejecución.
+- `packages/` · paquetes SCORM originales codificados en fragmentos para conservarlos íntegros en Git.
+- `scripts/extract-scorms.sh` · reconstrucción, validación y extracción de los Micro-SCORM.
 - `install.sh` · instalación y actualización desatendida en Ubuntu.
 - `server/teb.service.template` · servicio `systemd`.
 
@@ -75,13 +109,17 @@ sudo bash install.sh
 
 El instalador:
 
-1. instala Git, cURL y certificados si faltan;
+1. instala Git, cURL, certificados, `unzip` y utilidades necesarias;
 2. instala Node.js 22 si es necesario;
 3. crea el usuario de sistema `teb`;
 4. instala o actualiza la aplicación en `/opt/teb`;
-5. crea el directorio persistente `/var/lib/teb`;
-6. configura el servicio `teb.service`;
-7. activa el arranque automático y levanta la aplicación.
+5. reconstruye los tres Micro-SCORM desde `packages/`;
+6. valida cada ZIP antes de extraerlo;
+7. comprueba que cada paquete contiene `index.html`, `app.js`, `scorm.js`, `styles.css`, `imsmanifest.xml` y `README_DOCENTE.txt`;
+8. instala los paquetes en `web/reutilizados/`;
+9. crea el directorio persistente `/var/lib/teb`;
+10. configura `teb.service`;
+11. activa el arranque automático y reinicia la aplicación.
 
 Acceso inicial:
 
@@ -93,14 +131,12 @@ En el primer acceso la aplicación solicitará la creación del administrador.
 
 ## Actualización
 
-Vuelve a ejecutar el instalador:
-
 ```bash
 cd /opt/teb
 sudo bash install.sh
 ```
 
-La base de datos se conserva en `/var/lib/teb`.
+La base de datos se conserva en `/var/lib/teb`. Los Micro-SCORM se reconstruyen de nuevo desde los originales versionados en cada actualización.
 
 ## Comandos de diagnóstico
 
@@ -128,17 +164,36 @@ Comprobación de la API:
 curl http://127.0.0.1:8080/api/health
 ```
 
+Reconstrucción manual de los Micro-SCORM:
+
+```bash
+cd /opt/teb
+sudo bash scripts/extract-scorms.sh
+```
+
 ## Estructura pedagógica de UD1
 
-La unidad no se plantea como una actividad breve. Se organiza en 14 bloques: actividad económica y sectores; ciclo económico; inversión/financiación/gasto; gasto/pago e ingreso/cobro; patrimonio; activo/pasivo/patrimonio neto; corriente/no corriente; entrenamiento avanzado; ecuación patrimonial; construcción del balance; relación patrimonio-ciclo; caso guiado; reto integrador y evaluación/recuperación final.
+La unidad no se plantea como una actividad breve. Se organiza en 14 bloques: actividad económica y sectores; ciclo económico; inversión/financiación/gasto; gasto/pago e ingreso/cobro; patrimonio; activo/pasivo/patrimonio neto; corriente/no corriente; entrenamiento avanzado; ecuación patrimonial; construcción y clasificación del balance; estructura económica/financiera y ciclo; caso guiado; reto integrador y evaluación/recuperación final.
 
-El objetivo es que el entorno tenga carga real suficiente para acompañar las **14 horas programadas** y que cada actividad produzca evidencias vinculadas a los criterios de evaluación.
+Los Micro-SCORM reutilizados se insertan dentro de esta progresión como **prácticas formativas de consolidación**, mientras que los bloques largos mantienen explicación, práctica adicional y evidencia. Por tanto, su reutilización no reduce las 14 horas programadas: evita repetir recursos que ya son adecuados y permite dedicar más tiempo a casos, ejercicios y consolidación.
+
+## Control de calidad
+
+GitHub Actions valida automáticamente:
+
+- sintaxis del backend y del JavaScript de TEB;
+- reconstrucción correcta de los tres Micro-SCORM;
+- integridad ZIP;
+- presencia de sus recursos obligatorios;
+- sintaxis de `app.js` y `scorm.js` de los paquetes reconstruidos;
+- arranque del servidor;
+- respuesta satisfactoria de `/api/health`.
 
 ## Próximos desarrollos
 
-- Ampliación de teoría interactiva dentro de cada bloque.
+- Ampliación de la teoría interactiva dentro de cada bloque.
 - Más bancos de preguntas y casos aleatorios.
-- Reto integrador con documentos simulados de una pyme canaria.
-- Generación/exportación SCORM 1.2 compatible con Moodle y el LMS propio.
-- Modo de recuperación adaptativa por criterio.
+- Reto integrador con documentación simulada de una pyme canaria.
+- Recuperación adaptativa específica por criterio.
 - Informes docentes ampliados y exportación Aditio.
+- Empaquetado completo de la UD1 como SCORM 1.2 cuando interese distribuirla fuera del servidor TEB.
