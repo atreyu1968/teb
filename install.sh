@@ -13,7 +13,7 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y git curl ca-certificates
+apt-get install -y git curl ca-certificates unzip coreutils
 
 NEED_NODE=1
 if command -v node >/dev/null 2>&1; then
@@ -40,6 +40,9 @@ else
   git clone "$REPO" "$APP_DIR"
 fi
 
+chmod +x "$APP_DIR/scripts/extract-scorms.sh"
+"$APP_DIR/scripts/extract-scorms.sh"
+
 if [[ ! -f "$APP_DIR/server/.env" ]]; then
   cp "$APP_DIR/server/.env.example" "$APP_DIR/server/.env"
 fi
@@ -51,11 +54,13 @@ chmod 640 "$APP_DIR/server/.env"
 cp "$APP_DIR/server/teb.service.template" "$SERVICE"
 systemctl daemon-reload
 systemctl enable --now teb.service
+systemctl restart teb.service
 
 sleep 1
 if systemctl is-active --quiet teb.service; then
   echo
   echo "TEB instalado correctamente."
+  echo "MicroSCORM UD1 preparados en web/reutilizados/."
   echo "Acceso local: http://IP_DEL_SERVIDOR:8080"
   echo "Estado: systemctl status teb --no-pager"
   echo "Logs: journalctl -u teb -f"
