@@ -18,12 +18,29 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Prepare and validate MicroSCORM
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unzip
+          chmod +x scripts/extract-scorms.sh
+          scripts/extract-scorms.sh
+          for d in micro-scorm-de micro-scorm-f micro-scorm-g; do
+            test -f "web/reutilizados/$d/index.html"
+            test -f "web/reutilizados/$d/imsmanifest.xml"
+            grep -qi 'scormtype="sco"' "web/reutilizados/$d/imsmanifest.xml"
+            unzip -tqq <(true) 2>/dev/null || true
+          done
+
       - name: Check JavaScript syntax
         run: |
           node --check server/server.mjs
           node --check web/app.js
           node --check web/admin.js
           node --check web/course.js
+          for d in micro-scorm-de micro-scorm-f micro-scorm-g; do
+            node --check "web/reutilizados/$d/app.js"
+            node --check "web/reutilizados/$d/scorm.js"
+          done
 
       - name: Start TEB and check health
         run: |
