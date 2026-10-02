@@ -1,0 +1,20 @@
+[Unit]
+Description=TEB - Técnica Contable
+After=network.target
+
+[Service]
+Type=simple
+User=teb
+Group=teb
+WorkingDirectory=/opt/teb/server
+EnvironmentFile=/opt/teb/server/.env
+ExecStart=/usr/bin/node /opt/teb/server/server.mjs
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/teb
+
+[Install]
+WantedBy=multi-user.target
