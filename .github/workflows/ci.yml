@@ -1,0 +1,41 @@
+name: TEB CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check server/server.mjs
+          node --check web/app.js
+          node --check web/admin.js
+          node --check web/course.js
+
+      - name: Start TEB and check health
+        run: |
+          cd server
+          node server.mjs > /tmp/teb.log 2>&1 &
+          PID=$!
+          trap 'kill $PID || true' EXIT
+          for i in {1..20}; do
+            if curl -fsS http://127.0.0.1:8080/api/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/teb.log
+          exit 1
