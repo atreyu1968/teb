@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TEB · UD2 · Simulador contable</title>
+  <link rel="stylesheet" href="ud2-simulator.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div>
+        <div class="eyebrow">TEB · Técnica Contable</div>
+        <h1>Simulador contable · UD2</h1>
+        <p>Diario, Mayor y balance de comprobación en una única interfaz de aprendizaje.</p>
+      </div>
+      <div class="header-meta">
+        <span class="pill">RA2 · 20 h</span>
+        <span class="pill">Portafolio 60 %</span>
+        <span class="pill">Examen 40 %</span>
+      </div>
+    </header>
+
+    <nav class="top-tabs" aria-label="Vistas del simulador">
+      <button class="tab active" data-view="diary">Diario</button>
+      <button class="tab" data-view="ledger">Mayor</button>
+      <button class="tab" data-view="trial">Balance de comprobación</button>
+      <button class="tab" data-view="result">Resultado</button>
+      <button class="tab" data-view="progress">Progreso</button>
+    </nav>
+
+    <main class="workspace">
+      <aside class="scenario-panel">
+        <section class="panel-card">
+          <h2>Supuestos</h2>
+          <p class="muted">Completa primero los 3 supuestos demostrativos. Después se desbloquea la práctica guiada y el portafolio.</p>
+          <div id="scenarioList" class="scenario-list"></div>
+        </section>
+        <section class="panel-card compact">
+          <strong>Regla de cuentas</strong>
+          <p id="accountRule" class="muted"></p>
+        </section>
+      </aside>
+
+      <section class="main-panel">
+        <div id="scenarioHeader" class="scenario-header"></div>
+
+        <section id="diaryView" class="view active-view">
+          <div class="document-card">
+            <div>
+              <span class="label">OPERACIÓN ACTUAL</span>
+              <h2 id="operationTitle">Selecciona un supuesto</h2>
+              <p id="operationText" class="operation-text"></p>
+            </div>
+            <div class="document-meta">
+              <span id="operationDate"></span>
+              <span id="operationCounter"></span>
+            </div>
+          </div>
+
+          <div class="grid-two">
+            <section class="panel-card reasoning-card">
+              <div class="section-head">
+                <h3>Razonamiento</h3>
+                <span id="modeBadge" class="mode-badge"></span>
+              </div>
+              <div id="reasoningSteps" class="reasoning-steps"></div>
+              <div id="hintBox" class="hint-box hidden"></div>
+              <button id="hintBtn" class="secondary-btn">Necesito una pista</button>
+            </section>
+
+            <section class="panel-card journal-card">
+              <div class="section-head">
+                <div>
+                  <span class="label">LIBRO DIARIO</span>
+                  <h3 id="entryTitle">Asiento</h3>
+                </div>
+                <span id="balanceState" class="balance-state">Sin comprobar</span>
+              </div>
+
+              <div class="journal-table-wrap">
+                <table class="journal-table">
+                  <thead><tr><th>Cuenta</th><th>Descripción</th><th>Debe</th><th>Haber</th><th></th></tr></thead>
+                  <tbody id="entryRows"></tbody>
+                  <tfoot><tr><th colspan="2">Totales</th><th id="debitTotal">0,00 €</th><th id="creditTotal">0,00 €</th><th></th></tr></tfoot>
+                </table>
+              </div>
+
+              <datalist id="accountList"></datalist>
+              <div class="journal-actions">
+                <button id="addRowBtn" class="secondary-btn">+ Añadir línea</button>
+                <button id="checkBtn" class="primary-btn">Comprobar asiento</button>
+                <button id="nextBtn" class="primary-btn hidden">Siguiente operación</button>
+              </div>
+              <div id="feedback" class="feedback hidden"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="ledgerView" class="view">
+          <section class="panel-card">
+            <div class="section-head"><div><span class="label">LIBRO MAYOR</span><h2>Movimientos por cuenta</h2></div><select id="ledgerAccount"></select></div>
+            <div id="ledgerContent"></div>
+          </section>
+        </section>
+
+        <section id="trialView" class="view">
+          <section class="panel-card">
+            <span class="label">BALANCE DE COMPROBACIÓN</span>
+            <h2>Sumas y saldos</h2>
+            <div id="trialBalance"></div>
+          </section>
+        </section>
+
+        <section id="resultView" class="view">
+          <section class="panel-card">
+            <span class="label">RESULTADO CONTABLE</span>
+            <h2>Ingresos − Gastos</h2>
+            <div id="resultContent"></div>
+          </section>
+        </section>
+
+        <section id="progressView" class="view">
+          <section class="panel-card">
+            <span class="label">TRAZABILIDAD DEL RA2</span>
+            <h2>Progreso por criterio</h2>
+            <div id="criteriaProgress" class="criteria-grid"></div>
+            <div class="bank-note">Banco cargado: <strong id="bankCount">0</strong> actividades. Los supuestos evaluables utilizan la misma lógica de registro del Diario.</div>
+          </section>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="ud2-course.js"></script>
+  <script src="ud2-bank.js"></script>
+  <script src="ud2-simulator.js"></script>
+</body>
+</html>

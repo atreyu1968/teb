@@ -28,7 +28,6 @@ jobs:
             test -f "web/reutilizados/$d/index.html"
             test -f "web/reutilizados/$d/imsmanifest.xml"
             grep -qi 'scormtype="sco"' "web/reutilizados/$d/imsmanifest.xml"
-            unzip -tqq <(true) 2>/dev/null || true
           done
 
       - name: Check JavaScript syntax
@@ -37,19 +36,37 @@ jobs:
           node --check web/app.js
           node --check web/admin.js
           node --check web/course.js
+          node --check web/ud2-course.js
+          node --check web/ud2-bank.js
+          node --check web/ud2-simulator.js
+          node --check web/ud2-host.js
+          node --check scripts/check-ud2.mjs
+          node --check scripts/check-multiunit.mjs
+          test -f web/ud2.html
           for d in micro-scorm-de micro-scorm-f micro-scorm-g; do
             node --check "web/reutilizados/$d/app.js"
             node --check "web/reutilizados/$d/scorm.js"
           done
 
-      - name: Start TEB and check health
+      - name: Validate UD2 pedagogical structure
+        run: node scripts/check-ud2.mjs
+
+      - name: Validate multiunit backend and RA2 assessment
+        run: node scripts/check-multiunit.mjs
+
+      - name: Start TEB and check public endpoints
         run: |
+          export DATA_DIR=/tmp/teb-ci-final
           cd server
           node server.mjs > /tmp/teb.log 2>&1 &
           PID=$!
           trap 'kill $PID || true' EXIT
           for i in {1..20}; do
-            if curl -fsS http://127.0.0.1:8080/api/health; then
+            if curl -fsS http://127.0.0.1:8080/api/health > /tmp/health.json; then
+              grep -q 'teb-ud1-ra1' /tmp/health.json
+              grep -q 'teb-ud2-ra2' /tmp/health.json
+              curl -fsS http://127.0.0.1:8080/api/courses | grep -q 'teb-ud2-ra2'
+              curl -fsS http://127.0.0.1:8080/ud2.html > /dev/null
               exit 0
             fi
             sleep 1
