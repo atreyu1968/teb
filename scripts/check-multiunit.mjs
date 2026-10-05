@@ -19,9 +19,9 @@ async function waitHealth(){for(let i=0;i<40;i++){try{return await call('/api/he
 try{
   const health=await waitHealth();
   if(!health.courses.some(x=>x.id==='teb-ud1-ra1')||!health.courses.some(x=>x.id==='teb-ud2-ra2'))throw new Error('No aparecen UD1 y UD2 en health');
-  const setup=await call('/api/setup',{method:'POST',body:{username:'admin-ci',password:'prueba-segura-123'}});
+  const setup=await call('/api/setup',{method:'POST',expect:201,body:{username:'admin-ci',password:'prueba-segura-123'}});
   const admin=setup.token;
-  const studentCreated=await call('/api/admin/students',{method:'POST',token:admin,body:{firstName:'Alumno',lastName:'Prueba',pin:'1234'}});
+  const studentCreated=await call('/api/admin/students',{method:'POST',expect:201,token:admin,body:{firstName:'Alumno',lastName:'Prueba',pin:'1234'}});
   const login=await call('/api/login',{method:'POST',body:{role:'student',code:studentCreated.student.code,pin:'1234'}});
   const student=login.token;
 
@@ -33,10 +33,10 @@ try{
 
   const portfolio={};const exam={};
   for(const ce of ['RA2.a','RA2.b','RA2.c','RA2.d','RA2.e','RA2.f','RA2.g','RA2.h','RA2.i']){portfolio[ce]=ce==='RA2.d'?40:80;exam[ce]=ce==='RA2.d'?40:80;}
-  await call('/api/assessment',{method:'POST',token:student,body:{courseId:'teb-ud2-ra2',instrument:'portfolio',criteria:portfolio,ref:'ci-portfolio'}});
+  await call('/api/assessment',{method:'POST',expect:201,token:student,body:{courseId:'teb-ud2-ra2',instrument:'portfolio',criteria:portfolio,ref:'ci-portfolio'}});
   await call('/api/assessment',{method:'POST',token:student,body:{courseId:'teb-ud2-ra2',instrument:'exam',criteria:exam,ref:'ci-exam'},expect:403});
   await call('/api/admin/course-settings/teb-ud2-ra2',{method:'PUT',token:admin,body:{examEnabled:true}});
-  const result=await call('/api/assessment',{method:'POST',token:student,body:{courseId:'teb-ud2-ra2',instrument:'exam',criteria:exam,ref:'ci-exam'}});
+  const result=await call('/api/assessment',{method:'POST',expect:201,token:student,body:{courseId:'teb-ud2-ra2',instrument:'exam',criteria:exam,ref:'ci-exam'}});
   if(Math.abs(result.criteria['RA2.d'].score-40)>.001||result.criteria['RA2.d'].passed)throw new Error('RA2.d debería quedar suspenso con 40/40');
   if(Math.abs(result.criteria['RA2.a'].score-80)>.001||!result.criteria['RA2.a'].passed)throw new Error('RA2.a debería quedar superado con 80/80');
   const recovery=await call('/api/recovery?courseId=teb-ud2-ra2',{token:student});
