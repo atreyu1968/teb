@@ -86,10 +86,13 @@ function finalCriterionScores(studentId, courseId) {
   if (courseId !== 'teb-ud2-ra2') return Object.fromEntries(criteria(studentId,courseId).map(x=>[x.criterion,{score:x.score,passed:x.score>=50,complete:true}]));
   const map=componentMap(studentId,courseId), out={};
   for(const ce of Object.keys(RA2_WEIGHTS)){
-    const p=map[ce]?.portfolio?.score, e=map[ce]?.exam?.score;
+    const p=map[ce]?.portfolio?.score, e=map[ce]?.exam?.score, r=map[ce]?.recovery?.score;
     const complete=Number.isFinite(p)&&Number.isFinite(e);
-    const score=complete ? p*.60+e*.40 : (Number.isFinite(p)?p*.60:Number.isFinite(e)?e*.40:0);
-    out[ce]={score:Number(score.toFixed(2)),passed:complete&&score>=50,complete,portfolio:Number.isFinite(p)?p:null,exam:Number.isFinite(e)?e:null};
+    const regular=complete ? p*.60+e*.40 : (Number.isFinite(p)?p*.60:Number.isFinite(e)?e*.40:0);
+    const recovery=Number.isFinite(r)?r:null;
+    const recovered=complete&&regular<50&&recovery!=null&&recovery>=50;
+    const score=complete&&regular<50&&recovery!=null?Math.max(regular,recovery):regular;
+    out[ce]={score:Number(score.toFixed(2)),regularScore:Number(regular.toFixed(2)),passed:complete&&(regular>=50||recovered),complete,portfolio:Number.isFinite(p)?p:null,exam:Number.isFinite(e)?e:null,recovery,recovered};
   }
   return out;
 }
@@ -97,7 +100,7 @@ function refreshCriteriaFromComponents(studentId, courseId) {
   if (courseId !== 'teb-ud2-ra2') return;
   const finals=finalCriterionScores(studentId,courseId), components=componentMap(studentId,courseId), now=new Date().toISOString();
   for(const [ce,x] of Object.entries(finals)){
-    const attempts=(components[ce]?.portfolio?.attempts||0)+(components[ce]?.exam?.attempts||0);
+    const attempts=(components[ce]?.portfolio?.attempts||0)+(components[ce]?.exam?.attempts||0)+(components[ce]?.recovery?.attempts||0);
     db.prepare(`INSERT INTO criteria_progress(student_id,course_id,criterion,score,completed,attempts,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(student_id,course_id,criterion) DO UPDATE SET score=excluded.score,completed=excluded.completed,attempts=excluded.attempts,updated_at=excluded.updated_at`).run(studentId,courseId,ce,x.score,x.passed?1:0,attempts,now);
   }
 }
@@ -117,7 +120,7 @@ function recoveryPlan(studentId, courseId) {
       if(errors.length>=4) break;
     }
     const activityCount = ce==='RA2.d'||ce==='RA2.c' ? 12 : ce==='RA2.e'||ce==='RA2.i' ? 10 : 8;
-    items.push({criterion:ce,currentScore:x.score,portfolio:x.portfolio??null,exam:x.exam??null,objective:labels[ce]||`Reforzar ${ce}.`,diagnostics:errors,proposal:{microactivities:activityCount,unseen:true,masteryCheck:5,caseRequired:['RA2.c','RA2.d','RA2.e','RA2.f','RA2.g'].includes(ce)}});
+    items.push({criterion:ce,currentScore:x.score,regularScore:x.regularScore??x.score,portfolio:x.portfolio??null,exam:x.exam??null,recovery:x.recovery??null,objective:labels[ce]||`Reforzar ${ce}.`,diagnostics:errors,proposal:{microactivities:activityCount,unseen:true,masteryCheck:5,caseRequired:['RA2.c','RA2.d','RA2.e','RA2.f','RA2.g'].includes(ce)}});
   }
   return {courseId,generatedAt:new Date().toISOString(),passed:Object.values(finals).filter(x=>x.passed).length,total:Object.keys(finals).length,pending:items};
 }
@@ -206,12 +209,23 @@ async function api(req, res, url) {
     const s=auth(req,'student'); if(!s)return json(res,401,{error:'Sesión no válida.'});
     const d=await body(req), courseId=courseIdFrom(url,d); if(!courseId)return json(res,400,{error:'Unidad no válida.'});
     if(courseId!=='teb-ud2-ra2')return json(res,400,{error:'Esta API de instrumentos está configurada para RA2.'});
-    const instrument=clean(d.instrument,20); if(!['portfolio','exam'].includes(instrument))return json(res,400,{error:'Instrumento no válido.'});
+    const instrument=clean(d.instrument,20); if(!['portfolio','exam','recovery'].includes(instrument))return json(res,400,{error:'Instrumento no válido.'});
     if(instrument==='exam'&&!settings(courseId).examEnabled)return json(res,403,{error:'El examen todavía no ha sido activado por el profesor.'});
-    const scores=d.criteria||{}, now=new Date().toISOString();
-    for(const ce of Object.keys(RA2_WEIGHTS)){
-      if(scores[ce]==null)continue; const sc=Math.max(0,Math.min(100,Number(scores[ce])||0));
-      db.prepare(`INSERT INTO assessment_components(student_id,course_id,instrument,criterion,score,attempts,payload_json,updated_at) VALUES(?,?,?,?,?,1,?,?) ON CONFLICT(student_id,course_id,instrument,criterion) DO UPDATE SET score=excluded.score,attempts=assessment_components.attempts+1,payload_json=excluded.payload_json,updated_at=excluded.updated_at`).run(s.user_id,courseId,instrument,ce,sc,JSON.stringify(d.payload||{}),now);
+    const scores=d.criteria||{}, targets=Object.keys(scores).filter(ce=>RA2_WEIGHTS[ce]!=null); if(!targets.length)return json(res,400,{error:'No se han enviado criterios válidos.'});
+    const current=componentMap(s.user_id,courseId);
+    if(instrument==='portfolio'&&targets.some(ce=>current[ce]?.portfolio))return json(res,409,{error:'El portafolio ya fue entregado.'});
+    if(instrument==='exam'&&targets.some(ce=>current[ce]?.exam))return json(res,409,{error:'El examen ya fue entregado. Sólo se permite un intento.'});
+    if(instrument==='recovery'){
+      for(const ce of targets){
+        if(current[ce]?.recovery)return json(res,409,{error:`La recuperación de ${ce} ya fue entregada.`});
+        const p=current[ce]?.portfolio?.score,e=current[ce]?.exam?.score;if(!Number.isFinite(p)||!Number.isFinite(e))return json(res,409,{error:`${ce} todavía no tiene evaluación ordinaria completa.`});
+        if(p*.60+e*.40>=50)return json(res,409,{error:`${ce} ya estaba superado y no necesita recuperación.`});
+      }
+    }
+    const now=new Date().toISOString();
+    for(const ce of targets){
+      const sc=Math.max(0,Math.min(100,Number(scores[ce])||0));
+      db.prepare(`INSERT INTO assessment_components(student_id,course_id,instrument,criterion,score,attempts,payload_json,updated_at) VALUES(?,?,?,?,?,1,?,?)`).run(s.user_id,courseId,instrument,ce,sc,JSON.stringify(d.payload||{}),now);
       db.prepare('INSERT INTO activity_events(student_id,course_id,event_type,ref,criterion,score,payload_json,created_at) VALUES(?,?,?,?,?,?,?,?)').run(s.user_id,courseId,`${instrument}-criterion`,clean(d.ref||instrument,80),ce,sc,JSON.stringify(d.payload||{}),now);
     }
     refreshCriteriaFromComponents(s.user_id,courseId);

@@ -39,6 +39,7 @@ jobs:
           node --check web/ud2-course.js
           node --check web/ud2-bank.js
           node --check web/ud2-exam-bank.js
+          node --check web/ud2-recovery-bank.js
           node --check web/ud2-simulator.js
           node --check web/ud2-host.js
           node --check web/ud2-portfolio.js
