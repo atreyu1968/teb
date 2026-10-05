@@ -38,6 +38,7 @@ jobs:
           node --check web/admin.js
           node --check web/course.js
           node --check web/ud2-course.js
+          node --check web/ud2-bank.js
           node --check web/ud2-simulator.js
           node --check scripts/check-ud2.mjs
           for d in micro-scorm-de micro-scorm-f micro-scorm-g; do
