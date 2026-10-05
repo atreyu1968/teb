@@ -31,7 +31,7 @@
 | 13 | Integrador | Sí | Preparación del reto final |
 | 14 | Integrador | Sí | Cierre mensual de Atlántico Gestión Canarias |
 
-La versión inicial incorpora **161 operaciones contables** distribuidas entre los 14 supuestos y un **banco de 300 microactividades** generado de forma determinista a partir de operaciones etiquetadas por criterio y dificultad.
+La versión inicial incorpora **157 operaciones contables** distribuidas entre los 14 supuestos y un **banco de 300 microactividades** generado de forma determinista a partir de operaciones etiquetadas por criterio y dificultad.
 
 ## Criterios y ponderación interna del RA2
 
