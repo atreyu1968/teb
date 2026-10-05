@@ -37,10 +37,16 @@ jobs:
           node --check web/app.js
           node --check web/admin.js
           node --check web/course.js
+          node --check web/ud2-course.js
+          node --check web/ud2-simulator.js
+          node --check scripts/check-ud2.mjs
           for d in micro-scorm-de micro-scorm-f micro-scorm-g; do
             node --check "web/reutilizados/$d/app.js"
             node --check "web/reutilizados/$d/scorm.js"
           done
+
+      - name: Validate UD2 pedagogical structure
+        run: node scripts/check-ud2.mjs
 
       - name: Start TEB and check health
         run: |
