@@ -26,7 +26,7 @@ const COURSES = {
   'teb-ud1-ra1': { id:'teb-ud1-ra1', unit:'UD1', ra:'RA1', title:'El patrimonio empresarial en Canarias', hours:14, maxSessions:14, criteria:/^RA1\.[a-g]$/, portfolioWeight:1, examWeight:0 },
   'teb-ud2-ra2': { id:'teb-ud2-ra2', unit:'UD2', ra:'RA2', title:'La lógica de la contabilidad: cuenta y partida doble', hours:20, maxSessions:20, criteria:/^RA2\.[a-i]$/, portfolioWeight:.60, examWeight:.40 }
 };
-const RA2_WEIGHTS = { 'RA2.a':.10,'RA2.b':.10,'RA2.c':.125,'RA2.d':.125,'RA2.e':.10,'RA2.f':.10,'RA2.g':.10,'RA2.h':.10,'RA2.i':.15 };
+const RA2_WEIGHTS = Object.fromEntries(['RA2.a','RA2.b','RA2.c','RA2.d','RA2.e','RA2.f','RA2.g','RA2.h','RA2.i'].map(ce=>[ce,1/9]));
 mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new DatabaseSync(join(DATA_DIR, 'teb.sqlite'));
