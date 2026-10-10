@@ -50,8 +50,8 @@ function answerDistribution(bank){
   const out={};for(const x of bank)out[x.answerIndex]=(out[x.answerIndex]||0)+1;return out;
 }
 const pd=answerDistribution(c.activityBank),ed=answerDistribution(c.examBank),rd=answerDistribution(c.recoveryBank);
-if(c.activityBank.some(x=>x.choices.length!==4))fail('El portafolio debe usar cuatro opciones para evitar fuerza bruta con tres intentos');
-for(let i=0;i<4;i++)if((pd[i]||0)<70||(pd[i]||0)>80)fail(`Sesgo de posición en portafolio: ${JSON.stringify(pd)}`);
+if(c.activityBank.some(x=>x.choices.length!==5))fail('El portafolio debe usar cinco opciones para que tres intentos no permitan fuerza bruta aprobatoria');
+for(let i=0;i<5;i++)if((pd[i]||0)<55||(pd[i]||0)>65)fail(`Sesgo de posición en portafolio: ${JSON.stringify(pd)}`);
 for(const dist of [ed,rd])for(let i=0;i<3;i++)if((dist[i]||0)<95||(dist[i]||0)>105)fail(`Sesgo de posición: ${JSON.stringify(dist)}`);
 
 const allowedIgic=new Set(['4727','4777']);
@@ -85,7 +85,9 @@ for(const code of ['TEB-CI-1','TEB-CI-2','TEB-CI-3','TEB-CI-4']){
   const q=pick100(code);
   if(q.length!==100||new Set(q.map(x=>x.id)).size!==100||new Set(q.map(x=>x.prompt)).size!==100)fail(`${code}: selección de 100 no es única`);
   const first=q.filter(x=>x.answerIndex===0).length;
-  if(first>35)fail(`${code}: marcar siempre la primera daría ${first}% de aciertos`);
+  if(first>30)fail(`${code}: marcar siempre la primera daría ${first}% de aciertos`);
+  const brute=q.reduce((sum,x)=>sum+(x.answerIndex===0?100:x.answerIndex===1?75:x.answerIndex===2?50:0),0)/100;
+  if(brute>=50)fail(`${code}: probar sistemáticamente las tres primeras opciones daría ${brute}%`);
 }
 
 const evalOps=c.scenarios.filter(s=>s.evaluated).flatMap(s=>s.operations);
