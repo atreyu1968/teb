@@ -5,7 +5,7 @@
   const ops=C.scenarios.flatMap(s=>s.operations);
   const bank=[];let seq=1;
   const id=()=>`UD2-E${String(seq++).padStart(3,'0')}`;
-  const add=(criterion,i,prompt,choices,answerIndex=0,type='choice')=>bank.push({id:id(),criterion,difficulty:1+(i%3),type,prompt,choices,answerIndex});
+  const add=(criterion,i,prompt,choices,answerIndex=0,type='choice')=>{const n=choices.length,shift=(i+criterion.charCodeAt(4))%n,rotated=choices.map((_,j)=>choices[(j+shift)%n]),correct=(answerIndex-shift+n)%n;bank.push({id:id(),criterion,difficulty:1+(i%3),type,prompt,choices:rotated,answerIndex:correct})};
   const opAt=(i,offset=0)=>ops[(i*13+offset*17)%ops.length];
   const accName=code=>`${code} · ${C.accounts[code]}`;
 
