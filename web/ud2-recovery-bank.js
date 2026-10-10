@@ -6,7 +6,7 @@
   const id=()=>`UD2-R${String(seq++).padStart(3,'0')}`;
   const acc=code=>`${code} · ${C.accounts[code]}`;
   const opAt=(i,k=0)=>ops[(i*17+k*23)%ops.length];
-  const add=(criterion,i,prompt,choices,answerIndex,hint,explanation,kind='reinforcement')=>bank.push({id:id(),criterion,difficulty:1+(i%3),type:'choice',kind,prompt,choices,answerIndex,hint,explanation});
+  const add=(criterion,i,prompt,choices,answerIndex,hint,explanation,kind='reinforcement')=>{const n=choices.length,shift=(i+criterion.charCodeAt(4))%n,rotated=choices.map((_,j)=>choices[(j+shift)%n]),correct=(answerIndex-shift+n)%n;bank.push({id:id(),criterion,difficulty:1+(i%3),type:'choice',kind,prompt,choices:rotated,answerIndex:correct,hint,explanation})};
   for(const [ce,count] of Object.entries(distribution)){
     for(let i=0;i<count;i++){
       const n=i+1,practical=['RA2.c','RA2.d','RA2.e','RA2.f','RA2.g'].includes(ce)&&i%3===0;
@@ -16,7 +16,7 @@
           ['Después de varios asientos del mes, la empresa quiere revisar que las sumas y saldos son coherentes. ¿Qué fase realiza?',['Comprobación','Apertura','Constitución'],0],
           ['Una vez determinado el resultado y antes de comenzar el siguiente ejercicio, ¿qué fase termina el ciclo?',['Cierre','Registro ordinario','Apertura'],0],
           ['¿Qué orden ayuda mejor a reconstruir un ejercicio?',['Apertura → operaciones → comprobación → resultado → cierre','Resultado → cierre → apertura → operaciones','Cierre → resultado → apertura → cierre'],0]
-        ][i%4];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Sitúa la situación en el comienzo, desarrollo o final del ejercicio.',`La respuesta correcta es ${v[1][v[2]]}.`);continue;
+        ][i%4];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Sitúa la situación en el comienzo, desarrollo o final del ejercicio.',`La idea clave es: ${v[1][v[2]]}.`);continue;
       }
       if(ce==='RA2.b'){
         const o=opAt(i,1),e=o.entries[(i+1)%o.entries.length],pool=Object.keys(C.accounts).filter(x=>x!==e.account),w1=pool[(i*7)%pool.length],w2=pool[(i*11+2)%pool.length];
@@ -41,10 +41,10 @@
         add(ce,i,`${practical?'Caso práctico':'Recuperación'} ${n}. Ingresos: ${inc.toLocaleString('es-ES')} €. Gastos: ${exp.toLocaleString('es-ES')} €. ¿Cuál es el resultado?`,[right,'Resultado cero',`Pérdida de ${(inc+exp).toLocaleString('es-ES')} €`],0,'Calcula ingresos menos gastos.',`Resultado = ingresos − gastos = ${(inc-exp).toLocaleString('es-ES')} €.`,practical?'practical':'reinforcement');continue;
       }
       if(ce==='RA2.h'){
-        const v=[['El asiento que traslada al nuevo ejercicio los saldos patrimoniales iniciales es…',['el asiento de apertura','el asiento de cierre','el balance de comprobación'],0],['Al terminar el ejercicio, el asiento que deja saldadas las cuentas patrimoniales es…',['el asiento de cierre','el asiento de apertura','un asiento de cobro'],0],['¿Qué relación existe entre cierre y apertura?',['Los saldos patrimoniales del cierre enlazan con la apertura siguiente','No existe continuidad entre ejercicios','La apertura elimina el patrimonio neto'],0]][i%3];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Piensa si estás terminando un ejercicio o comenzando el siguiente.',`La respuesta correcta es ${v[1][v[2]]}.`);continue;
+        const v=[['El asiento que traslada al nuevo ejercicio los saldos patrimoniales iniciales es…',['el asiento de apertura','el asiento de cierre','el balance de comprobación'],0],['Al terminar el ejercicio, el asiento que deja saldadas las cuentas patrimoniales es…',['el asiento de cierre','el asiento de apertura','un asiento de cobro'],0],['¿Qué relación existe entre cierre y apertura?',['Los saldos patrimoniales del cierre enlazan con la apertura siguiente','No existe continuidad entre ejercicios','La apertura elimina el patrimonio neto'],0]][i%3];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Piensa si estás terminando un ejercicio o comenzando el siguiente.',`La idea clave es: ${v[1][v[2]]}.`);continue;
       }
       if(ce==='RA2.i'){
-        const v=[['Quieres conocer activo, patrimonio neto y pasivo en una fecha. ¿Qué cuenta anual consultas?',['Balance de situación','Pérdidas y ganancias','Libro Diario'],0],['Quieres explicar cómo se ha formado el resultado mediante ingresos y gastos. ¿Qué cuenta anual consultas?',['Cuenta de pérdidas y ganancias','Balance de situación','Libro Mayor'],0],['Necesitas información explicativa complementaria a los estados principales. ¿Qué documento consultas?',['Memoria','Libro Diario','Balance de comprobación'],0],['¿Cuál pertenece a las cuentas anuales?',['Balance de situación','Libro Mayor','Libro Diario'],0]][i%4];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Identifica qué información necesitas y qué documento la presenta.',`La respuesta correcta es ${v[1][v[2]]}.`);continue;
+        const v=[['Quieres conocer activo, patrimonio neto y pasivo en una fecha. ¿Qué cuenta anual consultas?',['Balance de situación','Pérdidas y ganancias','Libro Diario'],0],['Quieres explicar cómo se ha formado el resultado mediante ingresos y gastos. ¿Qué cuenta anual consultas?',['Cuenta de pérdidas y ganancias','Balance de situación','Libro Mayor'],0],['Necesitas información explicativa complementaria a los estados principales. ¿Qué documento consultas?',['Memoria','Libro Diario','Balance de comprobación'],0],['¿Cuál pertenece a las cuentas anuales?',['Balance de situación','Libro Mayor','Libro Diario'],0]][i%4];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Identifica qué información necesitas y qué documento la presenta.',`La idea clave es: ${v[1][v[2]]}.`);continue;
       }
     }
   }
