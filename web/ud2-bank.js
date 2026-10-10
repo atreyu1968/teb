@@ -1,64 +1,140 @@
 (()=>{
   const C=window.TEB_UD2;
   if(!C)throw new Error('Carga ud2-course.js antes de ud2-bank.js');
+
   const distribution={'RA2.a':24,'RA2.b':30,'RA2.c':42,'RA2.d':48,'RA2.e':36,'RA2.f':27,'RA2.g':24,'RA2.h':27,'RA2.i':42};
   const operations=C.scenarios.flatMap(s=>s.operations);
-  const bank=[];
-  let seq=1;
+  const bank=[]; let seq=1;
   const id=()=>`UD2-A${String(seq++).padStart(3,'0')}`;
-  const pick=i=>operations[i%operations.length];
-  const item=(criterion,i,data)=>({id:id(),criterion,difficulty:1+(i%3),...data});
-
-  const conceptual={
-    'RA2.a':[
-      ['Ordena las fases básicas del ciclo contable.',['Apertura → registro → comprobación → regularización/resultado → cierre','Cierre → apertura → registro → resultado','Registro → cierre → apertura → comprobación'],0,'sequence-cycle'],
-      ['¿En qué fase se registran de forma sistemática los hechos económicos del ejercicio?',['Registro','Cierre','Apertura'],0,'identify-phase'],
-      ['¿Qué fase permite revisar sumas, saldos y posibles incidencias antes del cierre?',['Comprobación','Apertura','Constitución'],0,'identify-phase']
-    ],
-    'RA2.e':[
-      ['¿Para qué sirve principalmente el balance de comprobación?',['Comprobar sumas y saldos y ayudar a detectar errores u omisiones','Calcular por sí solo todos los impuestos','Sustituir al Libro Diario'],0,'trial-balance'],
-      ['Si las sumas del Debe y del Haber no coinciden en el balance de comprobación, ¿qué indica?',['Existe al menos una incidencia de registro o traslado que debe revisarse','La empresa ha obtenido una pérdida','El asiento de apertura es correcto'],0,'spot-error'],
-      ['Un balance de comprobación cuadrado…',['no garantiza que todas las cuentas elegidas sean conceptualmente correctas','garantiza que no existe ningún error contable posible','sustituye a las cuentas anuales'],0,'reasoning']
-    ],
-    'RA2.g':[
-      ['Si los ingresos son 8.000 € y los gastos 6.500 €, el resultado es…',['Beneficio de 1.500 €','Pérdida de 1.500 €','Beneficio de 14.500 €'],0,'result'],
-      ['El resultado contable básico se obtiene comparando…',['ingresos y gastos del periodo','cobros y pagos exclusivamente','activo y pasivo sin considerar ingresos ni gastos'],0,'result'],
-      ['Si los gastos superan a los ingresos…',['existe una pérdida','existe siempre un cobro pendiente','el balance de comprobación no puede cuadrar'],0,'result']
-    ],
-    'RA2.h':[
-      ['¿Qué función cumple el asiento de apertura?',['Iniciar el ejercicio trasladando los saldos patrimoniales de cierre del ejercicio anterior','Calcular el resultado del ejercicio','Registrar únicamente cobros y pagos'],0,'opening-closing'],
-      ['¿Qué función cumple el asiento de cierre?',['Cerrar las cuentas patrimoniales al finalizar el ejercicio','Abrir las cuentas de ingresos','Sustituir al balance de comprobación'],0,'opening-closing'],
-      ['Apertura y cierre se relacionan porque…',['los saldos patrimoniales de cierre sirven de base para la apertura siguiente','ambos registran exclusivamente gastos','ambos eliminan el patrimonio neto'],0,'opening-closing']
-    ],
-    'RA2.i':[
-      ['¿Qué estado informa principalmente de la situación patrimonial de la empresa en una fecha?',['Balance de situación','Cuenta de pérdidas y ganancias','Libro Diario'],0,'annual-accounts'],
-      ['¿Qué estado informa principalmente de los ingresos, gastos y resultado del periodo?',['Cuenta de pérdidas y ganancias','Balance de situación','Libro Mayor'],0,'annual-accounts'],
-      ['¿Qué documento complementa y amplía la información contenida en las demás cuentas anuales?',['Memoria','Libro Diario','Balance de comprobación'],0,'annual-accounts']
-    ]
+  const opAt=(i,offset=0)=>operations[(i*11+offset*17)%operations.length];
+  const accountLabel=code=>`${code} · ${C.accounts[code]}`;
+  const accountClue={
+    '100':'la aportación estable de los socios',
+    '216':'el mobiliario de oficina',
+    '217':'los equipos informáticos de la empresa',
+    '400':'la deuda con proveedores de mercaderías',
+    '410':'la deuda con acreedores por servicios recibidos',
+    '430':'el derecho de cobro frente a clientes',
+    '523':'la deuda con el proveedor de inmovilizado',
+    '570':'el efectivo disponible en caja',
+    '572':'el dinero disponible en la cuenta bancaria',
+    '600':'las compras de mercaderías del periodo',
+    '621':'el gasto por alquiler del local',
+    '628':'el gasto por suministros',
+    '629':'otros servicios consumidos',
+    '700':'los ingresos por ventas de mercaderías',
+    '705':'los ingresos por servicios prestados',
+    '4727':'el IGIC soportado deducible',
+    '4777':'el IGIC repercutido a clientes'
   };
 
-  function operationQuestion(criterion,i){
-    const o=pick(i*7+criterion.charCodeAt(4));
-    const first=o.entries[0],second=o.entries[1];
-    if(criterion==='RA2.b')return item(criterion,i,{type:'identify-account',prompt:`En la operación «${o.description}», ¿qué cuenta representa uno de los elementos afectados?`,choices:[`${first.account} · ${C.accounts[first.account]}`,`${second.account} · ${C.accounts[second.account]}`,'Ninguna cuenta interviene'],answerIndex:i%2===0?0:1,operationId:o.id});
-    if(criterion==='RA2.c')return item(criterion,i,{type:'double-entry',prompt:`Analiza «${o.description}». ¿Qué principio debe mantenerse al registrar el asiento?`,choices:['La suma del Debe debe coincidir con la suma del Haber','Sólo puede intervenir una cuenta','Todo asiento debe implicar un cobro'],answerIndex:0,operationId:o.id});
-    if(criterion==='RA2.d'){
-      const target=i%2===0?first:second;const correct=target.debit>0?'Debe':'Haber';return item(criterion,i,{type:'debit-credit',prompt:`En «${o.description}», la cuenta ${target.account} · ${C.accounts[target.account]} se registra en…`,choices:[correct,correct==='Debe'?'Haber':'Debe','No se registra'],answerIndex:0,operationId:o.id});
+  function rotate(choices,answerIndex,seed){
+    const n=choices.length,shift=seed%n;
+    const rotated=choices.map((_,j)=>choices[(j+shift)%n]);
+    return {choices:rotated,answerIndex:(answerIndex-shift+n)%n};
+  }
+  function add(criterion,i,type,prompt,choices,answerIndex=0,extra={}){
+    const mixed=rotate(choices,answerIndex,i+criterion.charCodeAt(4));
+    bank.push({id:id(),criterion,difficulty:1+(i%3),type,prompt:`[${criterion} · ${i+1}] ${prompt}`,choices:mixed.choices,answerIndex:mixed.answerIndex,...extra});
+  }
+  function distractAccounts(correct,i){
+    const codes=Object.keys(C.accounts).filter(x=>x!==correct);
+    const picked=[];
+    for(let k=0;k<codes.length&&picked.length<3;k++){
+      const c=codes[(i*5+k*7)%codes.length];
+      if(c!==correct&&!picked.includes(c))picked.push(c);
     }
-    if(criterion==='RA2.f'){
-      const expense=o.entries.find(e=>e.account.startsWith('6')),income=o.entries.find(e=>e.account.startsWith('7'));const target=expense||income;if(!target)return item(criterion,i,{type:'income-expense',prompt:'¿Cuál de estas cuentas pertenece a ingresos o gastos?',choices:['621 · Arrendamientos y cánones','572 · Bancos','430 · Clientes'],answerIndex:0});const nature=target.account.startsWith('6')?'gasto':'ingreso';return item(criterion,i,{type:'income-expense',prompt:`En «${o.description}», ${target.account} · ${C.accounts[target.account]} es una cuenta de…`,choices:[nature,nature==='gasto'?'ingreso':'gasto','activo'],answerIndex:0,operationId:o.id});
-    }
+    return picked;
   }
 
   for(const [criterion,count] of Object.entries(distribution)){
     for(let i=0;i<count;i++){
-      if(['RA2.b','RA2.c','RA2.d','RA2.f'].includes(criterion)){bank.push(operationQuestion(criterion,i));continue}
-      const tpl=conceptual[criterion][i%conceptual[criterion].length];
-      let prompt=tpl[0],choices=[...tpl[1]],answerIndex=tpl[2];
-      if(criterion==='RA2.g'&&i%3===0){const income=2500+(i%8)*250,expenses=1400+(i%6)*200,diff=income-expenses;prompt=`Una empresa presenta ingresos por ${income.toLocaleString('es-ES')} € y gastos por ${expenses.toLocaleString('es-ES')} €. ¿Cuál es su resultado?`;choices=[`${diff>=0?'Beneficio':'Pérdida'} de ${Math.abs(diff).toLocaleString('es-ES')} €`,`Resultado cero`,`Pérdida de ${(income+expenses).toLocaleString('es-ES')} €`];answerIndex=0}
-      bank.push(item(criterion,i,{type:tpl[3],prompt,choices,answerIndex}));
+      const n=i+1;
+
+      if(criterion==='RA2.a'){
+        const variants=[
+          ['Una empresa inicia un nuevo ejercicio. ¿Qué fase debe realizar antes de registrar las operaciones del periodo?',['Apertura','Cierre','Regularización','Formulación de cuentas anuales'],0,'sequence-cycle'],
+          ['Después de registrar durante el ejercicio los hechos económicos, ¿qué fase ayuda a revisar sumas y saldos antes del cierre?',['Comprobación','Apertura','Constitución','Reparto del resultado'],0,'identify-phase'],
+          ['¿Qué secuencia resume mejor el ciclo contable básico?',['Apertura → registro → comprobación → regularización/resultado → cierre','Cierre → apertura → cierre → registro → resultado','Resultado → cierre → apertura → registro → constitución','Registro → apertura → cuentas anuales → cierre → comprobación'],0,'sequence-cycle'],
+          ['¿En qué fase se anotan sistemáticamente facturas, cobros, pagos y demás hechos del ejercicio?',['Registro','Cierre','Apertura','Formulación inicial'],0,'identify-phase'],
+          ['¿Qué fase deja las cuentas patrimoniales preparadas para enlazar con el ejercicio siguiente?',['Cierre','Registro diario','Comprobación inicial','Conciliación de caja'],0,'identify-phase'],
+          ['Antes de cerrar, la empresa revisa si las sumas y saldos son coherentes. ¿Qué instrumento/fase está utilizando?',['Comprobación','Apertura','Inventario comercial','Constitución'],0,'identify-phase']
+        ];
+        const v=variants[i%variants.length];add(criterion,i,v[3],`Situación ${n}: ${v[0]}`,v[1],v[2]);continue;
+      }
+
+      if(criterion==='RA2.b'){
+        const o=opAt(i,2),target=o.entries[(i*3)%o.entries.length];
+        const wrong=distractAccounts(target.account,i).map(accountLabel);
+        add(criterion,i,'identify-account',`En la operación «${o.description}», ¿qué cuenta representa específicamente ${accountClue[target.account]}?`,[accountLabel(target.account),...wrong],0,{operationId:o.id});continue;
+      }
+
+      if(criterion==='RA2.c'){
+        const o=opAt(i,3),amount=250+(i%12)*75;
+        const variants=[
+          [`Al registrar «${o.description}», ¿qué condición debe cumplir el asiento por partida doble?`,['La suma del Debe debe coincidir con la suma del Haber','Todas las cuentas deben ir al Debe','Sólo puede intervenir una cuenta','Debe existir siempre movimiento de banco'],0,'double-entry'],
+          [`Un asiento presenta ${amount} € en el Debe y ${amount} € en el Haber. ¿Qué puedes afirmar con seguridad?`,['Está cuadrado aritméticamente, aunque todavía podría existir un error conceptual','Es necesariamente correcto en todos sus aspectos','Demuestra que hubo un cobro','Demuestra que todas las cuentas son de activo'],0,'double-entry'],
+          [`Un hecho económico afecta a dos cuentas y una aumenta mientras otra disminuye. ¿Qué principio explica que ambos efectos deban registrarse coordinadamente?`,['Partida doble','Devengo de caja','Cierre automático','Inventario permanente obligatorio'],0,'double-entry'],
+          [`Si el Debe suma ${amount+50} € y el Haber ${amount} €, ¿puede darse por válido el asiento?`,['No, falta equilibrio entre Debe y Haber','Sí, si la diferencia es inferior al 20 %','Sí, si interviene una cuenta de gasto','Sí, siempre que exista justificante'],0,'double-entry'],
+          [`¿Por qué «${o.description}» no debe registrarse atendiendo sólo a una de las cuentas afectadas?`,['Porque la partida doble exige representar todos los efectos del hecho manteniendo el equilibrio','Porque todos los asientos deben tener cuatro cuentas','Porque el Libro Mayor sustituye al Diario','Porque cada operación debe repetirse dos veces'],0,'double-entry']
+        ];
+        const v=variants[i%variants.length];add(criterion,i,v[3],`Caso ${n}. ${v[0]}`,v[1],v[2],{operationId:o.id});continue;
+      }
+
+      if(criterion==='RA2.d'){
+        const o=opAt(i,4),target=o.entries[i%o.entries.length],correct=target.debit>0?'Debe':'Haber';
+        add(criterion,i,'debit-credit',`En «${o.description}», ¿en qué lado debe registrarse ${accountLabel(target.account)} por el efecto descrito?`,[correct,correct==='Debe'?'Haber':'Debe','En ambos lados por el mismo importe','No interviene en el asiento'],0,{operationId:o.id});continue;
+      }
+
+      if(criterion==='RA2.e'){
+        const base=1800+(i%10)*125,delta=(i%4===0)?50:0;
+        const variants=[
+          [`El balance de comprobación muestra Debe ${base.toLocaleString('es-ES')} € y Haber ${(base-delta).toLocaleString('es-ES')} €. ¿Qué actuación es correcta?`,delta?['Investigar una incidencia de registro o traslado antes de continuar','Cerrar el ejercicio porque la diferencia es pequeña','Modificar el resultado para compensar','Ignorar la diferencia si existe factura']:['Reconocer que cuadra aritméticamente, pero seguir revisando la corrección conceptual','Dar por demostrado que todas las cuentas elegidas son correctas','Concluir que existe beneficio','Eliminar las cuentas sin saldo'],0,'trial-balance'],
+          ['Un balance de comprobación cuadra exactamente. ¿Qué afirmación es correcta?',['Puede seguir existiendo un error conceptual en la elección de cuentas','Garantiza que todos los asientos son correctos','Demuestra que la empresa tiene beneficio','Sustituye al Libro Diario'],0,'reasoning'],
+          ['¿Qué combina normalmente un balance de comprobación de sumas y saldos?',['Sumas Debe/Haber y saldos deudores/acreedores','Sólo cobros y pagos','Únicamente ingresos y gastos','Sólo las cuentas con saldo cero'],0,'trial-balance'],
+          ['¿Para qué es especialmente útil antes del cierre?',['Para localizar incoherencias aritméticas y revisar saldos','Para sustituir todos los justificantes','Para calcular por sí solo el impuesto','Para eliminar automáticamente errores conceptuales'],0,'trial-balance']
+        ];
+        const v=variants[i%variants.length];add(criterion,i,v[3],`Comprobación ${n}. ${v[0]}`,v[1],v[2]);continue;
+      }
+
+      if(criterion==='RA2.f'){
+        const pairs=[['621','gasto'],['628','gasto'],['629','gasto'],['600','gasto'],['700','ingreso'],['705','ingreso']];
+        const [code,nature]=pairs[i%pairs.length];
+        const opposite=nature==='gasto'?'ingreso':'gasto';
+        add(criterion,i,'income-expense',`Clasifica ${accountLabel(code)} dentro de la lógica de esta unidad.`,[nature,opposite,'activo','pasivo'],0);continue;
+      }
+
+      if(criterion==='RA2.g'){
+        const income=3200+(i%9)*375,expense=1700+(i%8)*260,diff=income-expense;
+        const correct=`${diff>=0?'Beneficio':'Pérdida'} de ${Math.abs(diff).toLocaleString('es-ES')} €`;
+        add(criterion,i,'result',`Una empresa acumula ingresos por ${income.toLocaleString('es-ES')} € y gastos por ${expense.toLocaleString('es-ES')} €. ¿Cuál es el resultado contable básico?`,[correct,'Resultado cero',`Pérdida de ${(income+expense).toLocaleString('es-ES')} €`,`Beneficio de ${expense.toLocaleString('es-ES')} €`],0);continue;
+      }
+
+      if(criterion==='RA2.h'){
+        const variants=[
+          ['¿Qué hace el asiento de apertura?',['Inicia el ejercicio incorporando los saldos patrimoniales con los que comienza la empresa','Cancela todos los ingresos','Calcula el beneficio sin registrar operaciones','Sustituye al Libro Mayor'],0],
+          ['¿Qué finalidad tiene el asiento de cierre?',['Cerrar las cuentas patrimoniales al terminar el ejercicio','Registrar exclusivamente ventas pendientes','Crear las cuentas de gastos del siguiente ejercicio','Eliminar los justificantes'],0],
+          ['¿Cómo se relacionan cierre y apertura de ejercicios consecutivos?',['Los saldos patrimoniales de cierre sirven de referencia para la apertura siguiente','No guardan ninguna relación','La apertura elimina los saldos del cierre','Ambos contienen sólo ingresos y gastos'],0],
+          ['¿Cuál se realiza primero al comenzar un ejercicio ya iniciado por una empresa existente?',['Apertura','Cierre','Regularización final','Cuenta de pérdidas y ganancias'],0],
+          ['¿Qué idea describe mejor el cierre?',['Finaliza formalmente el registro del ejercicio y deja cerradas las cuentas patrimoniales','Borra la historia contable','Convierte todos los activos en gastos','Impide elaborar las cuentas anuales'],0]
+        ];const v=variants[i%variants.length];add(criterion,i,'opening-closing',`Ciclo ${n}. ${v[0]}`,v[1],v[2]);continue;
+      }
+
+      if(criterion==='RA2.i'){
+        const variants=[
+          ['¿Qué cuenta anual muestra principalmente activo, patrimonio neto y pasivo en una fecha?',['Balance de situación','Cuenta de pérdidas y ganancias','Libro Diario','Libro Mayor'],0],
+          ['¿Qué cuenta anual explica la formación del resultado mediante ingresos y gastos?',['Cuenta de pérdidas y ganancias','Balance de situación','Libro Mayor','Balance de comprobación'],0],
+          ['¿Qué documento de las cuentas anuales amplía y comenta información que puede no quedar suficientemente explicada en otros estados?',['Memoria','Libro Diario','Libro Mayor','Ficha de proveedores'],0],
+          ['¿Cuál es una cuenta anual y no un libro de registro?',['Balance de situación','Libro Diario','Libro Mayor','Libro auxiliar de caja'],0],
+          ['Si quieres conocer la situación patrimonial al cierre, ¿qué documento consultarías primero?',['Balance de situación','Libro Diario','Cuenta bancaria','Factura de compra'],0],
+          ['Si quieres conocer el beneficio o pérdida del periodo y su formación, ¿qué estado es el más directo?',['Cuenta de pérdidas y ganancias','Balance de situación','Mayor de Bancos','Asiento de apertura'],0]
+        ];const v=variants[i%variants.length];add(criterion,i,'annual-accounts',`Cuentas anuales ${n}. ${v[0]}`,v[1],v[2]);continue;
+      }
     }
   }
+
+  if(bank.length!==300)throw new Error(`Banco de portafolio incorrecto: ${bank.length}`);
+  if(new Set(bank.map(x=>x.prompt)).size!==300)throw new Error('El banco de portafolio contiene enunciados duplicados');
   C.activityBank=bank;
   C.activityDistribution=distribution;
 })();
