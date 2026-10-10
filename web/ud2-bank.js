@@ -33,14 +33,27 @@
     const rotated=choices.map((_,j)=>choices[(j+shift)%n]);
     return {choices:rotated,answerIndex:(answerIndex-shift+n)%n};
   }
+  const fifthDistractor={
+    'RA2.a':'La fase depende únicamente del saldo bancario',
+    'RA2.b':'999 · Cuenta inexistente en esta unidad',
+    'RA2.c':'Debe y Haber pueden diferir si existe justificante',
+    'RA2.d':'El lado depende de si la empresa obtiene beneficio',
+    'RA2.e':'El balance de comprobación sustituye a todos los libros',
+    'RA2.f':'patrimonio neto',
+    'RA2.g':'No puede calcularse comparando ingresos y gastos',
+    'RA2.h':'Apertura y cierre no guardan relación entre ejercicios',
+    'RA2.i':'Extracto bancario'
+  };
   function add(criterion,i,type,prompt,choices,answerIndex=0,extra={}){
-    const mixed=rotate(choices,answerIndex,i+criterion.charCodeAt(4));
+    const base=[...choices];
+    if(base.length===4){let extraChoice=fifthDistractor[criterion]||'Ninguna regla contable permite decidirlo';if(base.includes(extraChoice))extraChoice='Ninguna de las opciones anteriores';base.push(extraChoice)}
+    const mixed=rotate(base,answerIndex,i+criterion.charCodeAt(4));
     bank.push({id:id(),criterion,difficulty:1+(i%3),type,prompt:`[${criterion} · ${i+1}] ${prompt}`,choices:mixed.choices,answerIndex:mixed.answerIndex,...extra});
   }
   function distractAccounts(correct,i){
     const codes=Object.keys(C.accounts).filter(x=>x!==correct);
     const picked=[];
-    for(let k=0;k<codes.length&&picked.length<3;k++){
+    for(let k=0;k<codes.length&&picked.length<4;k++){
       const c=codes[(i*5+k*7)%codes.length];
       if(c!==correct&&!picked.includes(c))picked.push(c);
     }
