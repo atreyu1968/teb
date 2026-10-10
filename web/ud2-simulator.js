@@ -67,20 +67,42 @@
   function normalize(rows){return rows.map(r=>({account:String(r.account),debit:Number(r.debit.toFixed(2)),credit:Number(r.credit.toFixed(2))})).sort((a,b)=>a.account.localeCompare(b.account)||a.debit-b.debit||a.credit-b.credit)}
   function sameEntry(rows,expected){const a=normalize(rows),b=normalize(expected);return a.length===b.length&&a.every((r,i)=>r.account===b[i].account&&Math.abs(r.debit-b[i].debit)<.005&&Math.abs(r.credit-b[i].credit)<.005)}
   function validateRows(rows){if(rows.length<2)return 'Un asiento necesita al menos dos líneas.';for(const r of rows){if(!codeValid(r.account)||!C.accounts[r.account])return `La cuenta ${r.account||'(vacía)'} no pertenece al catálogo de esta unidad.`;if(r.debit>0&&r.credit>0)return `La cuenta ${r.account} no puede tener importe simultáneamente en Debe y Haber en esta operación.`;if(r.debit<=0&&r.credit<=0)return `Introduce el importe de la cuenta ${r.account}.`}const d=rows.reduce((a,r)=>a+r.debit,0),c=rows.reduce((a,r)=>a+r.credit,0);if(Math.abs(d-c)>.005)return 'El asiento no está cuadrado: Debe y Haber deben sumar lo mismo.';return ''}
-  function correctionHtml(o){return `<div><strong>Razonamiento correcto</strong><ol>${o.reasoning.map(x=>`<li>${x}</li>`).join('')}</ol><strong>Asiento:</strong><ul>${o.entries.map(r=>`<li>${r.account} · ${C.accounts[r.account]} — ${r.debit?`Debe ${euros.format(r.debit)}`:`Haber ${euros.format(r.credit)}`}</li>`).join('')}</ul></div>`}
   function recordCriterion(criteria,score){criteria.forEach(ce=>{const x=state.criterionEvidence[ce]||{sum:0,count:0};x.sum+=score;x.count+=1;state.criterionEvidence[ce]=x})}
-  function acceptOperation(score){const o=currentOperation();state.journals[scenario.id]=state.journals[scenario.id]||[];if(!state.journals[scenario.id].some(x=>x.opId===o.id))state.journals[scenario.id].push({opId:o.id,date:o.date,description:o.description,entries:o.entries,score});if(scenario.evaluated)recordCriterion(o.criteria,score);saveState();renderLedger();renderTrial();renderResult();renderProgress()}
+  function acceptOperation(score,recordEntries=true){
+    const o=currentOperation();state.journals[scenario.id]=state.journals[scenario.id]||[];
+    const existing=state.journals[scenario.id].find(x=>x.opId===o.id);
+    if(existing){
+      const delta=score-(Number(existing.score)||0);
+      existing.score=score;existing.entries=recordEntries?o.entries:[];
+      if(scenario.evaluated)o.criteria.forEach(ce=>{const x=state.criterionEvidence[ce];if(x)x.sum+=delta});
+    }else{
+      state.journals[scenario.id].push({opId:o.id,date:o.date,description:o.description,entries:recordEntries?o.entries:[],score});
+      if(scenario.evaluated)recordCriterion(o.criteria,score);
+    }
+    saveState();renderLedger();renderTrial();renderResult();renderProgress()
+  }
   function checkEntry(){
-    const rows=collectRows(),o=currentOperation(),error=validateRows(rows),key=opKey();state.attempts[key]=(state.attempts[key]||0)+1;const attempt=state.attempts[key];
+    const rows=collectRows(),o=currentOperation(),error=validateRows(rows),key=opKey();
+    state.attempts[key]=(state.attempts[key]||0)+1;const attempt=state.attempts[key];
     if(!error&&sameEntry(rows,o.entries)){
-      const score=scenario.evaluated?(attempt===1?100:75):100;acceptOperation(score);showFeedback(true,`Asiento correcto. ${scenario.evaluated?`Puntuación de la operación: ${score} %.`: 'Esta práctica no afecta a la calificación.'}`);finishOperation();return
+      const score=scenario.evaluated?(attempt===1?100:attempt===2?75:50):100;
+      acceptOperation(score,true);
+      showFeedback(true,`Asiento correcto. ${scenario.evaluated?`Puntuación de la operación: ${score} %.`:'Esta práctica no afecta a la calificación.'}`);
+      finishOperation();return
     }
     const reason=error||'El asiento cuadra matemáticamente, pero la lógica contable no es correcta.';
     if(scenario.stage==='demo'||scenario.stage==='guided'){
-      state.hints[key]=Math.min((state.hints[key]||0)+1,o.hints.length);saveState();renderHint();showFeedback(false,`${reason} Revisa la pista y vuelve a intentarlo.`);return
+      state.hints[key]=Math.min((state.hints[key]||0)+1,o.hints.length);saveState();renderHint();
+      showFeedback(false,`${reason} Revisa la pista y vuelve a intentarlo.`);return
     }
-    if(attempt<2){state.hints[key]=Math.min((state.hints[key]||0)+1,o.hints.length);saveState();renderHint();showFeedback(false,`${reason} Te queda un segundo intento. Se ha activado una pista de razonamiento.`);return}
-    acceptOperation(0);showFeedback(false,`${reason}${correctionHtml(o)}`);finishOperation()
+    if(attempt<3){
+      state.hints[key]=Math.min((state.hints[key]||0)+1,o.hints.length);saveState();renderHint();
+      showFeedback(false,`${reason} Te queda${attempt===1?'n dos intentos':' un intento'}. Se ha activado una pista de razonamiento.`);return
+    }
+    state.hints[key]=Math.min(3,o.hints.length);saveState();renderHint();
+    acceptOperation(0,false);
+    showFeedback(false,`${reason} Has agotado los tres intentos. Esta operación queda con 0 puntos. La solución no se muestra: revisa las pistas antes de continuar.`);
+    finishOperation()
   }
   function showFeedback(good,html){const f=$('feedback');f.className=`feedback ${good?'good':'bad'}`;f.innerHTML=html}
   function finishOperation(){$('checkBtn').classList.add('hidden');$('nextBtn').classList.remove('hidden')}
