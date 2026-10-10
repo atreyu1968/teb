@@ -4,10 +4,11 @@
   const $=id=>document.getElementById(id);
   const euros=new Intl.NumberFormat('es-ES',{style:'currency',currency:'EUR'});
   const STORE='teb_ud2_sim_state_v1';
-  const emptyState=()=>({completedScenarios:[],scenarioScores:{},currentScenario:1,currentOperation:{},journals:{},attempts:{},hints:{},criterionEvidence:{}});
+  const emptyState=()=>({completedScenarios:[],scenarioScores:{},currentScenario:1,currentOperation:{},journals:{},attempts:{},hints:{},criterionEvidence:{},violations:{}});
   let state=loadState();
   let scenario=C.scenarios.find(s=>s.id===state.currentScenario)||C.scenarios[0];
   let opIndex=Math.min(state.currentOperation[scenario.id]||0,scenario.operations.length-1);
+  let secureActive=false,safePause=false,pendingAdvance=null;
 
   function loadState(){try{return {...emptyState(),...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return emptyState()}}
   function saveState(){localStorage.setItem(STORE,JSON.stringify(state))}
@@ -15,7 +16,7 @@
   function isCompleted(id){return state.completedScenarios.includes(id)}
   function isUnlocked(s){if(s.id===1)return true;return isCompleted(s.id-1)}
   function stageLabel(stage){return ({demo:'Demostración',guided:'Práctica guiada',portfolio:'Portafolio',audit:'Auditoría',integrative:'Caso integrador'})[stage]||stage}
-  function modeText(){if(scenario.stage==='demo')return 'No evaluable · ayudas completas';if(scenario.stage==='guided')return 'Formativo · ayudas progresivas';return 'Evaluable · 2 intentos'}
+  function modeText(){if(scenario.stage==='demo')return 'No evaluable · ayudas completas';if(scenario.stage==='guided')return 'Formativo · ayudas progresivas';return 'Evaluable · 3 intentos · 100/75/50 %'}
   function codeValid(code){return /^\d{3}$/.test(code)||code==='4727'||code==='4777'}
   function moneyNumber(v){const n=Number(String(v||'').replace(',','.'));return Number.isFinite(n)?Math.round(n*100)/100:0}
 
@@ -39,7 +40,9 @@
     const o=currentOperation();const box=$('reasoningSteps');
     if(scenario.stage==='demo') box.innerHTML=o.reasoning.map((x,i)=>`<div class="reasoning-step"><strong>Paso ${i+1}</strong><br>${x}</div>`).join('');
     else if(scenario.stage==='guided') box.innerHTML='<div class="reasoning-step"><strong>Procedimiento</strong><br>1. Identifica qué cambia. 2. Decide si aumenta o disminuye. 3. Determina la naturaleza de la cuenta. 4. Aplica Debe/Haber.</div>';
-    else box.innerHTML='<div class="reasoning-step"><strong>Trabajo autónomo</strong><br>Analiza la operación antes de introducir el asiento. Las ayudas aparecerán sólo cuando las solicites o cometas un error.</div>';
+    else if(scenario.stage==='audit') box.innerHTML='<div class="reasoning-step"><strong>Trabajo de auditoría</strong><br>El asiento ya contiene un error intencionado. Comprueba cuenta, lado e importe; corrige sólo lo necesario y verifica que Debe = Haber.</div>';
+    else box.innerHTML='<div class="reasoning-step"><strong>Trabajo autónomo</strong><br>Analiza la operación antes de introducir el asiento. Las pistas aparecerán únicamente después de un error.</div>';
+    $('hintBtn').classList.toggle('hidden',scenario.evaluated);
     renderHint();
   }
   function renderHint(){const o=currentOperation(),n=state.hints[opKey()]||0,box=$('hintBox');if(!n){box.classList.add('hidden');box.textContent='';return}box.classList.remove('hidden');box.innerHTML=`<strong>Pista ${Math.min(n,o.hints.length)}:</strong> ${o.hints[Math.min(n,o.hints.length)-1]}`}
@@ -49,7 +52,15 @@
     const account=tr.querySelector('.account-input');account.oninput=()=>{tr.querySelector('.account-desc').textContent=C.accounts[account.value]||'Cuenta no incluida en la UD2';updateTotals()};
     tr.querySelectorAll('.money').forEach(x=>x.oninput=updateTotals);tr.querySelector('.remove-row').onclick=()=>{if($('entryRows').children.length>2)tr.remove();else tr.querySelectorAll('input').forEach(x=>x.value='');updateTotals()};return tr
   }
-  function resetEntry(){const body=$('entryRows');body.innerHTML='';body.append(makeRow(),makeRow());updateTotals();$('feedback').className='feedback hidden';$('feedback').innerHTML='';$('nextBtn').classList.add('hidden');$('checkBtn').classList.remove('hidden');$('balanceState').className='balance-state';$('balanceState').textContent='Sin comprobar'}
+  function auditDraft(o){
+    const rows=o.entries.map(x=>({...x}));
+    if(!rows.length)return rows;
+    if(opIndex%3===0){const r=rows[0];const d=r.debit;r.debit=r.credit;r.credit=d}
+    else if(opIndex%3===1){const wrong={'572':'570','570':'572','400':'523','523':'400','430':'400','600':'621','621':'628','628':'629','629':'621','700':'705','705':'700','4727':'4777','4777':'4727','216':'217','217':'216','100':'400'};rows[0].account=wrong[rows[0].account]||'570'}
+    else {const r=rows[0];if(r.debit>0)r.debit=Number((r.debit+50).toFixed(2));else r.credit=Number((r.credit+50).toFixed(2))}
+    return rows
+  }
+  function resetEntry(){const body=$('entryRows');body.innerHTML='';const initial=scenario.stage==='audit'?auditDraft(currentOperation()):[];if(initial.length)initial.forEach(x=>body.append(makeRow(x)));else{body.append(makeRow(),makeRow())}updateTotals();$('feedback').className='feedback hidden';$('feedback').innerHTML='';$('nextBtn').classList.add('hidden');$('checkBtn').classList.remove('hidden');$('checkBtn').disabled=false;$('balanceState').className='balance-state';$('balanceState').textContent='Sin comprobar'}
   function addRow(){if($('entryRows').children.length<6)$('entryRows').append(makeRow())}
   function collectRows(){return [...$('entryRows').querySelectorAll('tr')].map(tr=>({account:tr.querySelector('.account-input').value.trim(),debit:moneyNumber(tr.querySelector('.debit').value),credit:moneyNumber(tr.querySelector('.credit').value)})).filter(r=>r.account||r.debit||r.credit)}
   function updateTotals(){const rows=collectRows(),d=rows.reduce((a,r)=>a+r.debit,0),c=rows.reduce((a,r)=>a+r.credit,0);$('debitTotal').textContent=euros.format(d);$('creditTotal').textContent=euros.format(c);const b=$('balanceState');if(!rows.length){b.className='balance-state';b.textContent='Sin comprobar'}else if(Math.abs(d-c)<.005&&d>0){b.className='balance-state good';b.textContent='Equilibrio matemático ✓'}else{b.className='balance-state bad';b.textContent=`Diferencia ${euros.format(Math.abs(d-c))}`}}
@@ -73,7 +84,23 @@
   }
   function showFeedback(good,html){const f=$('feedback');f.className=`feedback ${good?'good':'bad'}`;f.innerHTML=html}
   function finishOperation(){$('checkBtn').classList.add('hidden');$('nextBtn').classList.remove('hidden')}
-  function nextOperation(){if(opIndex<scenario.operations.length-1){opIndex++;state.currentOperation[scenario.id]=opIndex;saveState();renderCurrentOperation();return}completeScenario()}
+  function fullscreenSupported(){return !!document.fullscreenEnabled}
+  async function enterFullscreen(){if(fullscreenSupported()&&!document.fullscreenElement)await document.documentElement.requestFullscreen()}
+  function hideSecureOverlay(){$('secureOverlay').classList.add('hidden')}
+  function showSecureOverlay(title,text,advance=null){
+    safePause=true;secureActive=false;pendingAdvance=advance;$('secureTitle').textContent=title;$('secureText').textContent=text;$('secureOverlay').classList.remove('hidden');
+    $('secureEnterBtn').onclick=async()=>{try{await enterFullscreen();safePause=false;secureActive=true;hideSecureOverlay();const fn=pendingAdvance;pendingAdvance=null;if(fn)fn()}catch{ $('secureText').textContent='El navegador no ha permitido entrar en pantalla completa. Vuelve a pulsar el botón para continuar.'}}
+  }
+  function gateEvaluable(){if(!scenario.evaluated){secureActive=false;safePause=false;hideSecureOverlay();return}if(secureActive)return;showSecureOverlay('Actividad evaluable preparada','La operación todavía no se muestra de forma activa. Entra en pantalla completa para comenzar.')}
+  function advanceOperation(){
+    if(opIndex<scenario.operations.length-1){opIndex++;state.currentOperation[scenario.id]=opIndex;saveState();renderCurrentOperation();return}
+    secureActive=false;safePause=true;completeScenario();if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})
+  }
+  function nextOperation(){
+    if(!scenario.evaluated)return advanceOperation();
+    secureActive=false;safePause=true;
+    showSecureOverlay('Pausa segura','La operación anterior ya está consolidada. Puedes salir ahora de pantalla completa sin penalización. La siguiente operación no se activará hasta que pulses el botón.',advanceOperation)
+  }
   function completeScenario(){
     const rows=state.journals[scenario.id]||[];const score=rows.length?Math.round(rows.reduce((a,x)=>a+(x.score??100),0)/scenario.operations.length):0;
     if(!isCompleted(scenario.id))state.completedScenarios.push(scenario.id);state.completedScenarios.sort((a,b)=>a-b);state.scenarioScores[scenario.id]=score;saveState();
@@ -88,10 +115,19 @@
   function renderTrial(){const map=accountStats(),codes=Object.keys(map).sort();if(!codes.length){$('trialBalance').innerHTML='<div class="empty">Registra operaciones para construir el balance de comprobación.</div>';return}let td=0,tc=0,sd=0,sc=0;const rows=codes.map(code=>{const x=map[code],bal=x.debit-x.credit,deudor=Math.max(0,bal),acreedor=Math.max(0,-bal);td+=x.debit;tc+=x.credit;sd+=deudor;sc+=acreedor;return `<tr><td>${code}</td><td>${C.accounts[code]}</td><td>${euros.format(x.debit)}</td><td>${euros.format(x.credit)}</td><td>${deudor?euros.format(deudor):''}</td><td>${acreedor?euros.format(acreedor):''}</td></tr>`}).join('');const ok=Math.abs(td-tc)<.005&&Math.abs(sd-sc)<.005;$('trialBalance').innerHTML=`<table class="data-table"><thead><tr><th>Cuenta</th><th>Descripción</th><th>Sumas Debe</th><th>Sumas Haber</th><th>Saldo deudor</th><th>Saldo acreedor</th></tr></thead><tbody>${rows}<tr class="total-row"><td colspan="2">TOTALES</td><td>${euros.format(td)}</td><td>${euros.format(tc)}</td><td>${euros.format(sd)}</td><td>${euros.format(sc)}</td></tr></tbody></table><div class="balance-banner ${ok?'good':'bad'}">${ok?'✓ El balance de comprobación está cuadrado.':'⚠ Existe una diferencia que debe investigarse.'}</div>`}
   function renderResult(){const entries=entriesForScenario();let expenses=0,income=0;entries.forEach(e=>{if(e.account.startsWith('6'))expenses+=e.debit-e.credit;if(e.account.startsWith('7'))income+=e.credit-e.debit});const result=income-expenses;$('resultContent').innerHTML=`<p>Ingresos acumulados: <strong>${euros.format(income)}</strong></p><p>Gastos acumulados: <strong>${euros.format(expenses)}</strong></p><div class="result-big ${result>=0?'profit':'loss'}">${result>=0?'Beneficio':'Pérdida'}: ${euros.format(Math.abs(result))}</div><p class="muted">El resultado se calcula aquí con finalidad didáctica a partir de las cuentas de los grupos 6 y 7 registradas en este supuesto.</p>`}
   function renderProgress(){const ev=state.criterionEvidence;$('criteriaProgress').innerHTML=Object.entries(C.criteria).map(([ce,c])=>{const x=ev[ce],score=x?Math.round(x.sum/x.count):0;return `<div class="criterion-card"><strong><span>${ce}</span><span>${score}%</span></strong><div>${c.label}</div><div class="criterion-bar"><span style="width:${score}%"></span></div><small>${x?.count||0} evidencias evaluables · peso RA2 ${(c.weight*100).toLocaleString('es-ES')} %</small></div>`}).join('')}
-  function renderCurrentOperation(){renderHeader();renderReasoning();resetEntry();renderLedger();renderTrial();renderResult();renderProgress()}
+  function renderCurrentOperation(){renderHeader();renderReasoning();resetEntry();renderLedger();renderTrial();renderResult();renderProgress();gateEvaluable()}
   function renderAll(){renderScenarioList();renderCurrentOperation()}
 
   document.querySelectorAll('.tab').forEach(tab=>tab.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active-view'));tab.classList.add('active');$(tab.dataset.view+'View').classList.add('active-view');if(tab.dataset.view==='ledger')renderLedger();if(tab.dataset.view==='trial')renderTrial();if(tab.dataset.view==='result')renderResult();if(tab.dataset.view==='progress')renderProgress()});
-  $('addRowBtn').onclick=addRow;$('checkBtn').onclick=checkEntry;$('nextBtn').onclick=nextOperation;$('hintBtn').onclick=askHint;$('ledgerAccount').onchange=renderLedger;
+  $('addRowBtn').onclick=addRow;$('checkBtn').onclick=checkEntry;$('nextBtn').onclick=nextOperation;$('hintBtn').onclick=()=>{if(!scenario.evaluated)askHint()};$('ledgerAccount').onchange=renderLedger;
+  document.addEventListener('fullscreenchange',()=>{
+    if(!scenario.evaluated||safePause||!secureActive||document.fullscreenElement)return;
+    secureActive=false;const key=opKey();state.violations[key]=(state.violations[key]||0)+1;acceptOperation(0,false);finishOperation();
+    showFeedback(false,'Has salido de pantalla completa antes de pulsar «Siguiente operación». Esta pantalla queda con 0 puntos.');
+    showSecureOverlay('Actividad anulada · 0 puntos','Estás en una pausa segura. La siguiente operación no se mostrará hasta que vuelvas a entrar en pantalla completa.',advanceOperation);
+  });
+  const tutorialDone=localStorage.getItem('teb_ud2_tutorial_done_v1')==='1';
+  if(tutorialDone)$('tutorialOverlay').classList.add('hidden');
+  $('tutorialStartBtn').onclick=()=>{localStorage.setItem('teb_ud2_tutorial_done_v1','1');$('tutorialOverlay').classList.add('hidden')};
   renderAccounts();renderAll();
 })();
