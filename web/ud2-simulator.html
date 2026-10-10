@@ -132,6 +132,31 @@
     </main>
   </div>
 
+  <div id="tutorialOverlay" class="modal-overlay">
+    <div class="modal-card tutorial-card">
+      <div class="eyebrow">ANTES DE TU PRIMER ASIENTO</div>
+      <h2>La contabilidad empieza por razonar, no por memorizar</h2>
+      <div class="tutorial-grid">
+        <div><strong>1 · ¿Qué es una cuenta?</strong><p>Una ficha que sigue los aumentos y disminuciones de un elemento: Bancos, Clientes, Proveedores, Ventas…</p></div>
+        <div><strong>2 · Debe y Haber</strong><p>No significan «bueno/malo». Son los dos lados del registro. En activo: aumenta en Debe y disminuye en Haber. Pasivo y patrimonio neto funcionan al contrario.</p></div>
+        <div><strong>3 · Gastos e ingresos</strong><p>Los gastos se registran normalmente en el Debe; los ingresos, en el Haber. No confundas gasto con pago ni ingreso con cobro.</p></div>
+        <div><strong>4 · Partida doble</strong><p>Cada hecho tiene dos o más efectos y el total del Debe debe ser exactamente igual al total del Haber.</p></div>
+      </div>
+      <div class="worked-example"><strong>Ejemplo:</strong> los socios ingresan 1.000 € en el banco → 572 Bancos aumenta: Debe 1.000 € · 100 Capital aumenta: Haber 1.000 €.</div>
+      <button id="tutorialStartBtn" class="primary-btn">Entendido · empezar la demostración</button>
+    </div>
+  </div>
+
+  <div id="secureOverlay" class="modal-overlay hidden">
+    <div class="modal-card secure-card">
+      <div class="eyebrow">MODO EVALUABLE PROTEGIDO</div>
+      <h2 id="secureTitle">Actividad preparada</h2>
+      <p id="secureText">La actividad se mostrará al entrar en pantalla completa.</p>
+      <div class="security-note">Si abandonas la pantalla completa antes de pulsar <strong>Siguiente operación</strong>, esta pantalla se calificará con <strong>0 puntos</strong>. Entre pantallas existe una pausa segura en la que puedes salir sin penalización.</div>
+      <button id="secureEnterBtn" class="primary-btn">Entrar en pantalla completa y continuar</button>
+    </div>
+  </div>
+
   <script src="ud2-course.js"></script>
   <script src="ud2-bank.js"></script>
   <script src="ud2-simulator.js"></script>
