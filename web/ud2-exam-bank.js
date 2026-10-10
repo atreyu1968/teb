@@ -21,8 +21,18 @@
         ];const v=variants[i%variants.length];add(criterion,i,`Situación ${n}. ${v[0]}`,v[1],v[2],'cycle');continue;
       }
       if(criterion==='RA2.b'){
-        const o=opAt(i,2),target=o.entries[i%o.entries.length],wrong=Object.keys(C.accounts).filter(x=>x!==target.account);const w1=wrong[(i*5)%wrong.length],w2=wrong[(i*9+3)%wrong.length];
-        add(criterion,i,`Caso ${n}. A partir del hecho «${o.description}», identifica una cuenta que representa correctamente uno de los elementos afectados.`,[accName(target.account),accName(w1),accName(w2)],0,'account');continue;
+        const o=opAt(i,2),target=o.entries[i%o.entries.length];
+        const clue={
+          '100':'la aportación estable de los socios','216':'el mobiliario de oficina','217':'los equipos informáticos',
+          '400':'la deuda con proveedores de mercaderías','410':'la deuda con acreedores por servicios',
+          '430':'el derecho de cobro frente a clientes','523':'la deuda con el proveedor de inmovilizado',
+          '570':'el efectivo en caja','572':'el dinero en la cuenta bancaria','600':'las compras de mercaderías',
+          '621':'el gasto por alquiler','628':'el gasto por suministros','629':'otros servicios consumidos',
+          '700':'los ingresos por ventas','705':'los ingresos por servicios','4727':'el IGIC soportado','4777':'el IGIC repercutido'
+        }[target.account];
+        const wrong=Object.keys(C.accounts).filter(x=>x!==target.account&&!o.entries.some(e=>e.account===x));
+        const w1=wrong[(i*5)%wrong.length],w2=wrong[(i*9+3)%wrong.length];
+        add(criterion,i,`Caso ${n}. En «${o.description}», ¿qué cuenta representa específicamente ${clue}?`,[accName(target.account),accName(w1),accName(w2)],0,'account');continue;
       }
       if(criterion==='RA2.c'){
         const o=opAt(i,3);const variants=[
