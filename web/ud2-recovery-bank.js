@@ -19,8 +19,17 @@
         ][i%4];add(ce,i,`Recuperación ${n}. ${v[0]}`,v[1],v[2],'Sitúa la situación en el comienzo, desarrollo o final del ejercicio.',`La idea clave es: ${v[1][v[2]]}.`);continue;
       }
       if(ce==='RA2.b'){
-        const o=opAt(i,1),e=o.entries[(i+1)%o.entries.length],pool=Object.keys(C.accounts).filter(x=>x!==e.account),w1=pool[(i*7)%pool.length],w2=pool[(i*11+2)%pool.length];
-        add(ce,i,`Recuperación ${n}. En «${o.description}», ¿qué cuenta representa uno de los elementos realmente afectados?`,[acc(e.account),acc(w1),acc(w2)],0,'Describe primero el elemento sin usar todavía Debe/Haber.',`Interviene ${acc(e.account)} porque representa uno de los elementos modificados por el hecho económico.`);continue;
+        const o=opAt(i,1),e=o.entries[(i+1)%o.entries.length];
+        const clue={
+          '100':'la aportación estable de los socios','216':'el mobiliario de oficina','217':'los equipos informáticos',
+          '400':'la deuda con proveedores de mercaderías','410':'la deuda con acreedores por servicios',
+          '430':'el derecho de cobro frente a clientes','523':'la deuda con el proveedor de inmovilizado',
+          '570':'el efectivo en caja','572':'el dinero en la cuenta bancaria','600':'las compras de mercaderías',
+          '621':'el gasto por alquiler','628':'el gasto por suministros','629':'otros servicios consumidos',
+          '700':'los ingresos por ventas','705':'los ingresos por servicios','4727':'el IGIC soportado','4777':'el IGIC repercutido'
+        }[e.account];
+        const pool=Object.keys(C.accounts).filter(x=>x!==e.account&&!o.entries.some(z=>z.account===x)),w1=pool[(i*7)%pool.length],w2=pool[(i*11+2)%pool.length];
+        add(ce,i,`Recuperación ${n}. En «${o.description}», ¿qué cuenta representa específicamente ${clue}?`,[acc(e.account),acc(w1),acc(w2)],0,'Describe primero el elemento sin usar todavía Debe/Haber.','Identifica la cuenta que representa exactamente el elemento descrito.');continue;
       }
       if(ce==='RA2.c'){
         const o=opAt(i,2);if(practical){const d=o.entries.reduce((a,x)=>a+x.debit,0);add(ce,i,`Caso práctico ${n}. Se propone registrar «${o.description}». ¿Qué comprobación confirma que el asiento respeta la partida doble?`,[`Debe y Haber suman ${d.toLocaleString('es-ES')} €`,`Todas las líneas están en el Debe`,`Sólo aparece una cuenta`],0,'Suma por separado Debe y Haber.','La partida doble exige igualdad entre los importes totales anotados en Debe y Haber.','practical')}else add(ce,i,`Recuperación ${n}. ¿Qué idea explica mejor la partida doble?`,['Cada hecho tiene efectos relacionados en dos o más cuentas y mantiene el equilibrio','Cada factura se registra dos veces','Todo hecho produce siempre un cobro y un pago'],0,'Piensa en el doble efecto económico, no en duplicar registros.','La partida doble refleja efectos relacionados y mantiene Debe = Haber.');continue;
