@@ -4,7 +4,7 @@
   const quota={'RA2.a':10,'RA2.b':10,'RA2.c':13,'RA2.d':12,'RA2.e':10,'RA2.f':10,'RA2.g':10,'RA2.h':10,'RA2.i':15};
   const freshState=()=>({bankVersion:BANK_VERSION,ids:[],index:0,attempts:{},scores:{},violations:{},submitted:false,submittedAt:null});
   let token=localStorage.getItem('teb_student_token')||'',profile=null,progress=null,selected=[],state=freshState();
-  let secureActive=false,safePause=true,pendingAdvance=null;
+  let secureActive=false,safePause=true,pendingAdvance=null,activeQuestionId=null;
 
   async function req(path,opt={}){const h={'Content-Type':'application/json',...(opt.headers||{})};if(token)h.Authorization='Bearer '+token;const r=await fetch(path,{...opt,headers:h});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'Error de comunicación');return d}
   function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
@@ -47,14 +47,14 @@
   function showSecure(title,text,advance=null){safePause=true;secureActive=false;pendingAdvance=advance;$('secureTitle').textContent=title;$('secureText').textContent=text;$('secureOverlay').classList.remove('hidden');$('secureEnterBtn').onclick=async()=>{try{await enterFullscreen();safePause=false;secureActive=true;hideSecure();const fn=pendingAdvance;pendingAdvance=null;if(fn)await fn()}catch{$('secureText').textContent='El navegador no ha permitido la pantalla completa. Pulsa de nuevo para continuar.'}}}
   async function advanceQuestion(){state.index=Math.min(99,state.index+1);await saveServer();renderAll()}
   async function safeNext(){secureActive=false;safePause=true;if(doneCount()>=100){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});await saveServer();renderAll();return}showSecure('Pausa segura','La actividad anterior ya está consolidada. Puedes salir de pantalla completa sin penalización. La siguiente pregunta no se activará hasta que pulses el botón.',advanceQuestion)}
-  async function penalizeCurrent(reason){if(!secureActive||safePause||state.submitted)return;const q=currentQuestion();if(!q)return;secureActive=false;state.scores[q.id]=0;state.violations[q.id]=(state.violations[q.id]||0)+1;await saveServer();renderProgress();showSecure('Actividad anulada · 0 puntos',reason+' La siguiente actividad permanecerá oculta hasta que vuelvas a entrar en pantalla completa.',advanceQuestion)}
+  async function penalizeCurrent(reason){if(!secureActive||safePause||state.submitted)return;const q=selected.find(x=>x.id===activeQuestionId);if(!q)return;secureActive=false;state.scores[q.id]=0;state.violations[q.id]=(state.violations[q.id]||0)+1;await saveServer();renderProgress();showSecure('Actividad anulada · 0 puntos',reason+' La siguiente actividad permanecerá oculta hasta que vuelvas a entrar en pantalla completa.',advanceQuestion)}
 
   function renderQuestion(){
     const done=doneCount();$('bar').style.width=`${done}%`;$('counter').textContent=`${done} / 100 actividades completadas`;
-    if(!preparationDone()){$('question').innerHTML='<h2>Portafolio todavía bloqueado</h2><p>Completa primero los 3 supuestos demostrativos y los 4 guiados del simulador. Es la preparación obligatoria antes de empezar la evaluación.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
-    if(state.submitted){$('question').innerHTML='<h2>Portafolio entregado</h2><p>La entrega está cerrada. Consulta abajo el resultado por criterios.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
-    if(done>=100){$('question').innerHTML='<h2>Microactividades completadas</h2><p>Has terminado las 100 actividades. Para entregar el portafolio deben estar completados también los siete supuestos evaluables.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
-    const q=currentQuestion();if(!q)return;const attempts=state.attempts[q.id]||0;
+    if(!preparationDone()){activeQuestionId=null;$('question').innerHTML='<h2>Portafolio todavía bloqueado</h2><p>Completa primero los 3 supuestos demostrativos y los 4 guiados del simulador. Es la preparación obligatoria antes de empezar la evaluación.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
+    if(state.submitted){activeQuestionId=null;$('question').innerHTML='<h2>Portafolio entregado</h2><p>La entrega está cerrada. Consulta abajo el resultado por criterios.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
+    if(done>=100){activeQuestionId=null;$('question').innerHTML='<h2>Microactividades completadas</h2><p>Has terminado las 100 actividades. Para entregar el portafolio deben estar completados también los siete supuestos evaluables.</p>';$('hint').classList.add('hidden');$('feedback').className='hidden';return}
+    const q=currentQuestion();if(!q)return;activeQuestionId=q.id;const attempts=state.attempts[q.id]||0;
     $('question').innerHTML=`<span class="chip">${q.criterion}</span><h2>Actividad ${done+1}</h2><h3>${q.prompt}</h3>${q.choices.map((o,i)=>`<label class="option"><input type="radio" name="ans" value="${i}"> ${o}</label>`).join('')}<button id="checkBtn" class="btn">Comprobar</button>`;
     $('hint').classList.toggle('hidden',attempts===0);if(attempts)$('hint').textContent=hintFor(q,attempts);$('feedback').className='hidden';$('checkBtn').onclick=()=>check(q);
   }
